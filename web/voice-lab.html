@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>T3 voice lab</title>
+<style>
+  @font-face { font-family: Lexend; src: url(fonts/lexend-latin.woff2) format('woff2'); font-weight: 100 900; }
+  :root { --blue: #5F5DFF; --lilac: #A9A8FF; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: var(--blue); color: #fff; font-family: Lexend, system-ui, sans-serif; }
+  body { padding: 28px 16px 48px; }
+  header { max-width: 1100px; margin: 0 auto 24px; display: flex; flex-wrap: wrap; gap: 12px 24px;
+           align-items: center; justify-content: space-between; }
+  h1 { font-weight: 500; font-size: 24px; }
+  header p { opacity: .8; font-size: 14px; max-width: 560px; line-height: 1.45; }
+  button { font: inherit; font-size: 15px; border: 0; border-radius: 30px; padding: 10px 20px;
+           background: #fff; color: var(--blue); cursor: pointer; }
+  #status { font-size: 13px; opacity: .8; margin-top: 6px; text-align: right; }
+  main { max-width: 1100px; margin: 0 auto; display: grid; gap: 28px 24px;
+         grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+  figure { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  canvas { width: 100%; max-width: 320px; aspect-ratio: 1; border-radius: 50%; background: #000; display: block; }
+  figcaption { text-align: center; }
+  figcaption b { display: block; font-weight: 500; font-size: 17px; }
+  figcaption span { font-size: 13px; opacity: .8; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Voice feedback, six ideas</h1>
+    <p>What the disc could show while a visitor holds the button and speaks. Everything stays inside the
+       black circle (the disc itself never moves). Without a microphone, a simulated voice plays.</p>
+  </div>
+  <div>
+    <button id="mic">Use my microphone</button>
+    <div id="status">Simulated voice</div>
+  </div>
+</header>
+<main>
+  <figure><canvas data-v="halo"></canvas><figcaption><b>1. Halo</b><span>the waveform wrapped into a ring</span></figcaption></figure>
+  <figure><canvas data-v="ripples"></canvas><figcaption><b>2. Ripples</b><span>each syllable sends a ring outwards</span></figcaption></figure>
+  <figure><canvas data-v="sunburst"></canvas><figcaption><b>3. Sunburst</b><span>a radial equaliser, rays by pitch</span></figcaption></figure>
+  <figure><canvas data-v="dust"></canvas><figcaption><b>4. Orbit dust</b><span>points on orbits, pushed by the voice</span></figcaption></figure>
+  <figure><canvas data-v="orb"></canvas><figcaption><b>5. Breath orb</b><span>a soft shape that swells and wobbles</span></figcaption></figure>
+  <figure><canvas data-v="iris"></canvas><figcaption><b>6. Iris</b><span>rings from low (centre) to high (edge)</span></figcaption></figure>
+</main>
+
+<script>
+/* ---------------- sound: microphone or simulated voice ---------------- */
+const BINS = 64;                 // log-spaced frequency bands, 0..1
+const WAVE = 256;                // time-domain samples, -1..1
+const S = { level: 0, bins: new Float32Array(BINS), wave: new Float32Array(WAVE), onset: 0, t: 0 };
+let analyser = null, freq, time;
+
+document.getElementById('mic').onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.6;
+    ctx.createMediaStreamSource(stream).connect(analyser);
+    freq = new Uint8Array(analyser.frequencyBinCount);
+    time = new Float32Array(analyser.fftSize);
+    document.getElementById('status').textContent = 'Microphone on: speak!';
+    document.getElementById('mic').style.display = 'none';
+  } catch (e) {
+    document.getElementById('status').textContent = 'No microphone (needs HTTPS and permission): simulated voice';
+  }
+};
+
+let prevLevel = 0;
+function listen(t) {
+  S.t = t;
+  let level;
+  if (analyser) {
+    analyser.getByteFrequencyData(freq);
+    analyser.getFloatTimeDomainData(time);
+    const n = freq.length;
+    for (let i = 0; i < BINS; i++) {          // log spacing: ~60 Hz .. 8 kHz at 48 kHz
+      const a = Math.floor(3 * Math.pow(n / 6, i / BINS)), b = Math.max(a + 1, Math.floor(3 * Math.pow(n / 6, (i + 1) / BINS)));
+      let s = 0; for (let k = a; k < b; k++) s += freq[k];
+      const v = Math.min(1, Math.pow(s / ((b - a) * 255) * 1.8, 0.8));
+      S.bins[i] += (v - S.bins[i]) * (v > S.bins[i] ? 0.5 : 0.12);
+    }
+    let rms = 0; for (let i = 0; i < time.length; i++) rms += time[i] * time[i];
+    level = Math.min(1, Math.pow(Math.sqrt(rms / time.length) * 8, 0.6));
+    const step = time.length / WAVE;
+    for (let i = 0; i < WAVE; i++) S.wave[i] = time[Math.floor(i * step)];
+  } else {
+    // simulated voice: syllables (bursts) with a couple of formants, pauses between phrases
+    const phrase = Math.sin(t * 0.55) > -0.35 ? 1 : 0;
+    const syl = Math.max(0, Math.sin(t * 7.3) * 0.6 + Math.sin(t * 3.1 + 1) * 0.5) * phrase;
+    level = Math.min(1, syl * (0.75 + 0.25 * Math.sin(t * 1.7)));
+    const f1 = 8 + 4 * Math.sin(t * 2.2), f2 = 22 + 8 * Math.sin(t * 1.3 + 2);
+    for (let i = 0; i < BINS; i++) {
+      const v = level * (Math.exp(-((i - f1) ** 2) / 18) + 0.7 * Math.exp(-((i - f2) ** 2) / 40) + 0.15 * Math.random());
+      S.bins[i] += (Math.min(1, v) - S.bins[i]) * 0.35;
+    }
+    for (let i = 0; i < WAVE; i++) {
+      const x = i / WAVE * Math.PI * 2;
+      S.wave[i] = level * 0.5 * (Math.sin(x * 3 + t * 9) * 0.6 + Math.sin(x * 7 - t * 13) * 0.3 + (Math.random() - 0.5) * 0.2);
+    }
+  }
+  S.onset = level - prevLevel > 0.12 && level > 0.25 ? 1 : 0; // a syllable starts
+  prevLevel = level;
+  S.level += (level - S.level) * (level > S.level ? 0.45 : 0.08);
+}
+
+/* ---------------- the six variants ---------------- */
+const WHITE = '#ffffff', BLUE = '#5F5DFF', LILAC = '#A9A8FF';
+
+const V = {
+  // 1. waveform wrapped around a circle, three layers
+  halo(g, R, s, st) {
+    g.globalCompositeOperation = 'lighter';
+    [[BLUE, 0.62, 1.0, 4], [LILAC, 0.55, -0.7, 3], [WHITE, 0.5, 0.5, 2.5]].forEach(([c, base, dir, w], k) => {
+      g.beginPath();
+      for (let i = 0; i <= WAVE; i++) {
+        const a = i / WAVE * Math.PI * 2 + s.t * 0.3 * dir;
+        const v = s.wave[(i + k * 40) % WAVE];
+        const r = R * (base + v * 0.55 * (0.4 + s.level));
+        const x = Math.cos(a) * r, y = Math.sin(a) * r;
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.closePath(); g.strokeStyle = c; g.lineWidth = w; g.globalAlpha = 0.9; g.stroke();
+    });
+  },
+
+  // 2. rings expanding from the centre, one per syllable
+  ripples(g, R, s, st) {
+    st.rings = st.rings || [];
+    st.next = st.next || 0;
+    if ((s.onset || (s.level > 0.2 && s.t > st.next)) && st.rings.length < 14) {
+      st.rings.push({ born: s.t, w: 1.5 + s.level * 6 });
+      st.next = s.t + 0.35;
+    }
+    st.rings = st.rings.filter((r) => s.t - r.born < 2.4);
+    for (const r of st.rings) {
+      const k = (s.t - r.born) / 2.4;
+      g.beginPath(); g.arc(0, 0, R * (0.08 + 0.85 * Math.sqrt(k)), 0, Math.PI * 2);
+      g.strokeStyle = k < 0.15 ? WHITE : LILAC; g.globalAlpha = (1 - k) * 0.9; g.lineWidth = r.w * (1 - k * 0.6); g.stroke();
+    }
+    g.globalAlpha = 1; g.beginPath(); g.arc(0, 0, R * (0.05 + 0.06 * s.level), 0, Math.PI * 2); g.fillStyle = WHITE; g.fill();
+  },
+
+  // 3. radial equaliser, mirrored left and right
+  sunburst(g, R, s, st) {
+    const N = 72, inner = R * 0.18;
+    g.lineCap = 'round';
+    for (let i = 0; i < N; i++) {
+      const half = i < N / 2 ? i : N - 1 - i;           // mirror: same band on both sides
+      const v = s.bins[Math.floor(half / (N / 2) * BINS * 0.8)];
+      const a = i / N * Math.PI * 2 - Math.PI / 2;
+      const len = R * (0.03 + 0.62 * v);
+      g.beginPath();
+      g.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+      g.lineTo(Math.cos(a) * (inner + len), Math.sin(a) * (inner + len));
+      g.strokeStyle = v > 0.55 ? WHITE : v > 0.25 ? LILAC : BLUE; g.lineWidth = 3.2; g.globalAlpha = 0.95; g.stroke();
+    }
+  },
+
+  // 4. particles on orbits, pushed outwards by the voice (the objects' point-cloud language)
+  dust(g, R, s, st) {
+    if (!st.p) st.p = Array.from({ length: 700 }, () => ({
+      r: 0.12 + Math.pow(Math.random(), 0.7) * 0.72, a: Math.random() * Math.PI * 2,
+      sp: (0.15 + Math.random() * 0.35) * (Math.random() < 0.5 ? -1 : 1), b: Math.floor(Math.random() * BINS * 0.7),
+      z: Math.random(),
+    }));
+    g.globalCompositeOperation = 'lighter';
+    for (const p of st.p) {
+      p.a += p.sp * 0.016 * (0.4 + s.level * 1.6);
+      const push = s.bins[p.b] * 0.16 + s.level * 0.05;
+      const r = R * Math.min(0.95, p.r + push);
+      const size = 1 + p.z * 1.6 + s.bins[p.b] * 1.5;
+      g.fillStyle = p.z > 0.8 ? WHITE : p.z > 0.4 ? LILAC : BLUE;
+      g.globalAlpha = 0.45 + 0.55 * Math.min(1, s.bins[p.b] + 0.2);
+      g.fillRect(Math.cos(p.a) * r - size / 2, Math.sin(p.a) * r - size / 2, size, size);
+    }
+  },
+
+  // 5. a soft organic shape in the centre
+  orb(g, R, s, st) {
+    const base = R * (0.22 + 0.28 * s.level);
+    const pts = 90;
+    const shape = (scale, wob) => {
+      g.beginPath();
+      for (let i = 0; i <= pts; i++) {
+        const a = i / pts * Math.PI * 2;
+        const n = Math.sin(a * 3 + s.t * 2.1) * 0.5 + Math.sin(a * 5 - s.t * 1.7) * 0.3 + Math.sin(a * 2 + s.t * 0.9) * 0.2;
+        const r = base * scale * (1 + n * wob * (0.08 + 0.35 * s.level));
+        i ? g.lineTo(Math.cos(a) * r, Math.sin(a) * r) : g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      g.closePath();
+    };
+    const grad = g.createRadialGradient(0, 0, 0, 0, 0, base * 1.6);
+    grad.addColorStop(0, 'rgba(169,168,255,0.95)'); grad.addColorStop(0.6, 'rgba(95,93,255,0.55)'); grad.addColorStop(1, 'rgba(95,93,255,0)');
+    shape(1.5, 1.4); g.fillStyle = grad; g.fill();
+    shape(1, 1); g.strokeStyle = WHITE; g.lineWidth = 2.5; g.globalAlpha = 0.95; g.stroke();
+  },
+
+  // 6. concentric rings, one band each: low in the centre, high at the edge
+  iris(g, R, s, st) {
+    const N = 9;
+    for (let k = 0; k < N; k++) {
+      let v = 0; const a = Math.floor(k / N * BINS * 0.8), b = Math.floor((k + 1) / N * BINS * 0.8);
+      for (let i = a; i < b; i++) v += s.bins[i];
+      v /= Math.max(1, b - a);
+      const r = R * (0.12 + k * 0.088);
+      g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2);
+      g.strokeStyle = v > 0.5 ? WHITE : k % 2 ? LILAC : BLUE;
+      g.globalAlpha = 0.25 + 0.75 * v; g.lineWidth = 1.5 + v * 14; g.stroke();
+    }
+  },
+};
+
+/* ---------------- drawing loop ---------------- */
+const canvases = [...document.querySelectorAll('canvas[data-v]')].map((c) => ({ c, g: c.getContext('2d'), st: {} }));
+function size() {
+  for (const v of canvases) {
+    const px = Math.round(v.c.clientWidth * (window.devicePixelRatio || 1));
+    v.c.width = v.c.height = px;
+  }
+}
+addEventListener('resize', size); size();
+
+function frame(now) {
+  listen(now / 1000);
+  for (const { c, g, st } of canvases) {
+    const W = c.width, R = W / 2;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    g.clearRect(0, 0, W, W);
+    g.save();
+    g.beginPath(); g.arc(R, R, R, 0, Math.PI * 2); g.clip();     // stays inside the disc
+    g.translate(R, R);
+    g.scale(W / 300, W / 300);  // draw in a 300-unit space: same look at any size / pixel density
+    g.lineWidth = 2;
+    V[c.dataset.v](g, 150 * 0.92, S, st);
+    g.restore();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
