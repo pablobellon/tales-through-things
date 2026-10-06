@@ -1,6 +1,7 @@
 /*
  * Microphone: the voice feedback drawn inside the black disc during recording
- * ("dust waves": orbiting dots, each syllable sends a wave through them),
+ * ("bold soft ripples": each syllable sends a ring of blue light outwards;
+ * other ideas are in voice-lab.html),
  * and the recording itself (16 kHz mono WAV, sent to the Mac for transcription).
  *
  * If the mic is unavailable (no permission, not HTTPS...), a gentle simulated
@@ -150,25 +151,11 @@ export function createWave(canvas, size) {
     }
   }
 
-  // ---- dust waves: points orbit the disc; each syllable sends a wave from the
-  // centre that pushes the points it passes and lights them up (no ring drawn)
-  const COLORS = ['#5F5DFF', '#A9A8FF', '#FFFFFF'];
-  const sprites = COLORS.map((c) => {
-    const s = document.createElement('canvas');
-    s.width = s.height = 32;
-    const sg = s.getContext('2d');
-    const grad = sg.createRadialGradient(16, 16, 0, 16, 16, 16);
-    grad.addColorStop(0, c); grad.addColorStop(0.55, c); grad.addColorStop(1, 'rgba(0,0,0,0)');
-    sg.fillStyle = grad; sg.beginPath(); sg.arc(16, 16, 16, 0, Math.PI * 2); sg.fill();
-    return s;
-  });
-  const DOTS = 900, LIFE = 2.6;
-  const dots = Array.from({ length: DOTS }, () => ({
-    r: 0.1 + Math.pow(Math.random(), 0.6) * 0.8, a: Math.random() * Math.PI * 2,
-    sp: (0.08 + Math.random() * 0.25) * (Math.random() < 0.5 ? -1 : 1), z: Math.random(),
-  }));
+  // ---- bold soft ripples (voice lab option 10): each syllable sends a thick ring
+  // of blue light from the centre to the edge; louder = thicker. Blue only.
+  const LIFE = 2.8;
   let rings = [];
-  let nextRing = 0, prevAll = 0, lastT = null;
+  let nextRing = 0, prevAll = 0;
 
   return {
     resize(stageScale) {
@@ -178,53 +165,46 @@ export function createWave(canvas, size) {
     },
     draw(now) {
       const t = now / 1000;
-      const dt = lastT === null ? 0.016 : Math.min(0.05, t - lastT);
-      lastT = t;
       readLevels(t);
       const level = levels.all;
 
-      // a syllable starts (sharp rise), or steady speech: a new wave
+      // a syllable starts (sharp rise), or steady speech: a new ring
       const onset = level - prevAll > 0.08 && level > 0.2;
       prevAll = level;
-      if ((onset || (level > 0.18 && t > nextRing)) && rings.length < 10) {
-        rings.push({ born: t, power: 0.4 + level });
-        nextRing = t + 0.38;
+      if ((onset || (level > 0.2 && t > nextRing)) && rings.length < 8) {
+        rings.push({ born: t, w: 10 + level * 26 });
+        nextRing = t + 0.42;
       }
       rings = rings.filter((r) => t - r.born < LIFE);
-      const fronts = rings.map((r) => {
-        const k = (t - r.born) / LIFE;
-        return { rad: 0.06 + 0.88 * Math.sqrt(k), k, power: r.power };
-      });
 
       const W = canvas.width;
-      const R = (W / 2) * 0.92;
-      const unit = W / 300; // dot sizes in a 300-unit disc
+      const unit = W / 300;            // sizes below are in a 300-unit disc
+      const R = 150 * 0.92;
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.clearRect(0, 0, W, W);
-      g.translate(W / 2, W / 2);
-      g.globalCompositeOperation = 'lighter';
+      g.setTransform(unit, 0, 0, unit, W / 2, W / 2);
 
-      for (const d of dots) {
-        d.a += d.sp * dt * (0.5 + level);
-        let push = 0, glow = 0;
-        for (const f of fronts) {
-          const x = (d.r - f.rad) / 0.07;
-          const w = Math.exp(-x * x) * f.power * (1 - f.k);
-          push += w * 0.07;
-          glow += w;
-        }
-        const r = R * Math.min(0.96, d.r + push + level * 0.015);
-        const size = (1.3 + d.z * 1.6 + Math.min(2.6, glow * 2.3)) * unit;
-        g.globalAlpha = Math.min(1, 0.3 + d.z * 0.25 + glow * 0.8);
-        g.drawImage(sprites[glow > 0.5 ? 2 : d.z > 0.55 ? 1 : 0],
-                    Math.cos(d.a) * r - size / 2, Math.sin(d.a) * r - size / 2, size, size);
+      for (const r of rings) {
+        const k = (t - r.born) / LIFE;
+        const rad = R * (0.1 + 0.82 * Math.sqrt(k));
+        const w = r.w * (1 - 0.65 * k);
+        const alpha = Math.min(1, (1 - k) * 1.4) * Math.min(1, k * 12); // quick in, slow out
+        // a ring of light: transparent → blue → transparent across its width
+        const grad = g.createRadialGradient(0, 0, Math.max(0, rad - w), 0, 0, rad + w);
+        grad.addColorStop(0, 'rgba(95,93,255,0)');
+        grad.addColorStop(0.5, `rgba(95,93,255,${alpha})`);
+        grad.addColorStop(1, 'rgba(95,93,255,0)');
+        g.beginPath();
+        g.arc(0, 0, rad + w, 0, Math.PI * 2);
+        g.arc(0, 0, Math.max(0, rad - w), 0, Math.PI * 2, true);
+        g.fillStyle = grad;
+        g.fill();
       }
-      // a small heart that beats with the voice
-      g.globalCompositeOperation = 'source-over';
-      g.globalAlpha = 0.9;
-      g.drawImage(sprites[2], -R * (0.03 + 0.05 * level), -R * (0.03 + 0.05 * level),
-                  R * (0.06 + 0.1 * level), R * (0.06 + 0.1 * level));
-      g.globalAlpha = 1;
+      // the centre breathes with the voice
+      g.beginPath();
+      g.arc(0, 0, R * (0.06 + 0.07 * level), 0, Math.PI * 2);
+      g.fillStyle = '#5F5DFF';
+      g.fill();
     },
   };
 }
