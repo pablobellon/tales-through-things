@@ -24,6 +24,13 @@ import urllib.request
 
 from archive import MOCK, SEED
 import prompts
+from syllables import pattern
+
+# Haiku style: 'strict' = classic form, checked (5-7-5 counted here, season word, cut);
+#              'free'   = haiku-inspired three lines (the earlier behaviour).
+HAIKU_MODE = os.environ.get('T3_HAIKU', 'strict').strip().lower()
+HAIKU_FORM = [5, 7, 5]
+HAIKU_TRIES = 3  # revisions if the count is off
 
 
 def pause(seconds):
@@ -98,7 +105,7 @@ class CloudProviders(MockProviders):
     @property
     def name(self):
         parts = [f'speech: {"OpenAI " + self.stt_model if self.stt else "mock"}',
-                 f'conversation: {self.model if self.claude else "mock"}',
+                 f'conversation: {self.model if self.claude else "mock"} (haiku: {HAIKU_MODE})',
                  f'3D: {"fal.ai" if self.fal else "mock"}']
         return ' · '.join(parts)
 
@@ -180,21 +187,64 @@ class CloudProviders(MockProviders):
     def compose(self, theme, qa):
         if not self.claude:
             return super().compose(theme, qa)
+        strict = HAIKU_MODE == 'strict'
+        props = {
+            'object': {'type': 'string'},
+            'image_prompt': {'type': 'string'},
+            'haiku': {'type': 'array', 'items': {'type': 'string'}},
+        }
+        if strict:
+            props['season_word'] = {'type': 'string'}
         out = self._ask(
-            self.model, prompts.COMPOSER,
+            self.model, prompts.COMPOSER_STRICT if strict else prompts.COMPOSER,
             f'Theme: {theme["title"]}\n\nConversation:\n{_conversation(qa)}',
             {'type': 'object', 'additionalProperties': False,
-             'required': ['object', 'image_prompt', 'haiku'],
-             'properties': {
-                 'object': {'type': 'string'},
-                 'image_prompt': {'type': 'string'},
-                 'haiku': {'type': 'array', 'items': {'type': 'string'}},
-             }},
+             'required': list(props), 'properties': props},
             max_tokens=8000, effort='medium')
         haiku = [l.strip() for l in out['haiku'] if l.strip()][:3]
-        print(f'  object: {out["object"]!r}\n  haiku: {haiku}', flush=True)
+        if strict:
+            haiku = self._check_haiku(haiku, out.get('season_word', ''))
+        print(f'  object: {out["object"]!r}\n  haiku: {haiku} {pattern(haiku)}', flush=True)
         return {'object': out['object'], 'haiku': haiku, 'image_prompt': out['image_prompt'],
                 'tilt': 0.15}
+
+    def _check_haiku(self, haiku, season_word):
+        """Count syllables here (not Claude's estimate); ask for revisions until 5-7-5."""
+        def problems(h):
+            p = []
+            if len(h) != 3:
+                p.append(f'it must have exactly 3 lines (it has {len(h)})')
+            else:
+                counts = pattern(h)
+                for i, (n, want) in enumerate(zip(counts, HAIKU_FORM)):
+                    if n != want:
+                        p.append(f'line {i + 1} has {n} syllables, it needs {want}')
+            if season_word and season_word.lower() not in ' '.join(h).lower():
+                p.append(f'the season word "{season_word}" must appear')
+            return p
+
+        best, best_score = haiku, None
+        for attempt in range(HAIKU_TRIES + 1):
+            issues = problems(haiku)
+            score = sum(abs(n - w) for n, w in zip(pattern(haiku), HAIKU_FORM)) + 5 * abs(len(haiku) - 3)
+            if best_score is None or score < best_score:
+                best, best_score = haiku, score
+            if not issues:
+                return haiku
+            if attempt == HAIKU_TRIES:
+                break
+            print(f'  haiku revision {attempt + 1}: {"; ".join(issues)}', flush=True)
+            out = self._ask(
+                self.model, prompts.HAIKU_FIX,
+                'Haiku:\n' + '\n'.join(haiku) +
+                f'\n\nSeason word: {season_word or "(none)"}\n'
+                f'Measured syllables per line: {pattern(haiku)}\nTo fix: ' + '; '.join(issues),
+                {'type': 'object', 'additionalProperties': False, 'required': ['haiku'],
+                 'properties': {'haiku': {'type': 'array', 'items': {'type': 'string'}}}},
+                max_tokens=4000, effort='low')
+            haiku = [l.strip() for l in out['haiku'] if l.strip()][:3]
+        print('  haiku: kept the closest version', flush=True)
+        return best
 
     # -- image + 3D
 

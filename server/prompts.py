@@ -85,3 +85,35 @@ it was there, it witnessed the moment
    - simple, contemporary English
 
 4. Give the object's name as a short lowercase phrase (e.g. "blue plastic bucket")."""
+
+
+# ------------------------------------------------------------------ strict haiku (T3_HAIKU=strict)
+# Same composer, with the haiku section replaced by the classic rules.
+
+_FREE_HAIKU = COMPOSER[COMPOSER.index('3. Write a haiku told BY the object'):COMPOSER.index('4. Give the object')]
+
+_STRICT_HAIKU = """3. Write a true haiku told BY the object, speaking quietly to the visitor ("you").
+   - exactly three lines of 5, 7 and 5 syllables; count every syllable carefully
+   - one season word (kigo) that fits this memory: from a season the visitor mentioned \\
+or clearly implied (summer heat, cicadas, first snow, spring rain, autumn leaves, \\
+long evening light...); give that word or phrase in "season_word", exactly as it \\
+appears in the haiku
+   - one cut (kireji): a dash at the end of the first or second line, setting two \\
+images side by side
+   - present tense, one single instant, concrete perception only: what the object \\
+sees, hears, touches or feels right now
+   - no metaphor, no simile, no explanation, no story across several sentences, \\
+never name an emotion
+   - the object may say "I", "me", "my", but stays restrained: perception, not commentary
+   - use details the visitor gave, never anyone's name; simple, contemporary English
+
+"""
+
+COMPOSER_STRICT = COMPOSER.replace(_FREE_HAIKU, _STRICT_HAIKU)
+
+HAIKU_FIX = """You revise haiku so that they follow the classic form exactly. You receive a \\
+haiku, the syllable counts measured with a pronunciation dictionary, and what must \\
+be fixed. Change as few words as possible: keep the images, the season word, the \\
+cut (dash), the present tense and the object's quiet first-person voice. Each line \\
+must have exactly the required number of syllables (5, 7, 5); trust the measured \\
+counts over your own."""
