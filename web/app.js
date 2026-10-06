@@ -289,7 +289,7 @@ function hideText(el) {
 // a text arrives: dust gathers into its letters, then the crisp text takes over
 function revealText(el, delayMs = 0) {
   const at = dust.appear(el, delayMs);
-  el.style.transition = `opacity 600ms ease ${at}ms`;
+  el.style.transition = `opacity 150ms ease ${at}ms`; // readable the moment the dots land
   el.classList.add('on');
 }
 

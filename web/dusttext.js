@@ -10,8 +10,7 @@
 const MAX_DOTS = 3500;
 const FLY_S = 1.0;      // one dot's flight
 const SPREAD_S = 0.6;   // dots leave one after the other over this time
-const HOLD_S = 0.25;    // dots stay assembled a moment before the crisp text takes over
-const FADE_S = 0.6;     // dots dissolve while the crisp text fades in
+const SWAP_S = 0.15;    // when the dots land, the crisp text replaces them this fast
 const OUT_S = 0.8;      // scattering when a text leaves
 
 export function createDustText(canvas, discEl, size) {
@@ -97,7 +96,7 @@ export function createDustText(canvas, discEl, size) {
       const dots = textDots(el);
       if (!dots.length) return 0;
       groups.push({ dots, t0: performance.now() / 1000 + delayMs / 1000, mode: 'in' });
-      return delayMs + (SPREAD_S + FLY_S + HOLD_S) * 1000;
+      return delayMs + (SPREAD_S + FLY_S) * 1000; // the crisp text appears as the last dots land
     },
     disappear(el) {
       const dots = textDots(el);
@@ -128,9 +127,9 @@ export function createDustText(canvas, discEl, size) {
       groups = groups.filter((grp) => {
         const age = t - grp.t0;
         if (grp.mode === 'in') {
-          const end = SPREAD_S + FLY_S + HOLD_S + FADE_S;
-          if (age > end) return false;
-          const fade = age > end - FADE_S ? 1 - (age - (end - FADE_S)) / FADE_S : 1;
+          const landed = SPREAD_S + FLY_S;
+          if (age > landed + SWAP_S) return false;
+          const fade = age > landed ? 1 - (age - landed) / SWAP_S : 1;
           for (const d of grp.dots) {
             const k = Math.min(1, Math.max(0, (age - d.delay) / FLY_S));
             if (k <= 0) continue;
