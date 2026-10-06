@@ -29,7 +29,7 @@
 <body>
 <header>
   <div>
-    <h1>Voice feedback, six ideas</h1>
+    <h1>Voice feedback ideas</h1>
     <p>What the disc could show while a visitor holds the button and speaks. Everything stays inside the
        black circle (the disc itself never moves). Without a microphone, a simulated voice plays.</p>
   </div>
@@ -39,6 +39,8 @@
   </div>
 </header>
 <main>
+  <figure><canvas data-v="rippleDust"></canvas><figcaption><b>7. Ripples + dust</b><span>rings move through the orbiting points</span></figcaption></figure>
+  <figure><canvas data-v="dustWaves"></canvas><figcaption><b>8. Dust waves</b><span>the same, the rings only seen in the dust</span></figcaption></figure>
   <figure><canvas data-v="halo"></canvas><figcaption><b>1. Halo</b><span>the waveform wrapped into a ring</span></figcaption></figure>
   <figure><canvas data-v="ripples"></canvas><figcaption><b>2. Ripples</b><span>each syllable sends a ring outwards</span></figcaption></figure>
   <figure><canvas data-v="sunburst"></canvas><figcaption><b>3. Sunburst</b><span>a radial equaliser, rays by pitch</span></figcaption></figure>
@@ -215,6 +217,59 @@ const V = {
     }
   },
 };
+
+/* ---------------- mixes: ripples travelling through orbiting dust ---------------- */
+
+function rippleDust(g, R, s, st, drawRings) {
+  // dust on orbits
+  if (!st.p) st.p = Array.from({ length: 900 }, () => ({
+    r: 0.1 + Math.pow(Math.random(), 0.6) * 0.8, a: Math.random() * Math.PI * 2,
+    sp: (0.08 + Math.random() * 0.25) * (Math.random() < 0.5 ? -1 : 1), z: Math.random(),
+  }));
+  // a ring per syllable, growing from the centre to the edge
+  st.rings = st.rings || [];
+  st.next = st.next || 0;
+  const LIFE = 2.6;
+  if ((s.onset || (s.level > 0.2 && s.t > st.next)) && st.rings.length < 10) {
+    st.rings.push({ born: s.t, power: 0.4 + s.level });
+    st.next = s.t + 0.38;
+  }
+  st.rings = st.rings.filter((r) => s.t - r.born < LIFE);
+  const fronts = st.rings.map((r) => {
+    const k = (s.t - r.born) / LIFE;
+    return { rad: 0.06 + 0.88 * Math.sqrt(k), k, power: r.power };
+  });
+
+  if (drawRings) {
+    for (const f of fronts) {
+      g.beginPath(); g.arc(0, 0, R * f.rad, 0, Math.PI * 2);
+      g.strokeStyle = LILAC; g.globalAlpha = (1 - f.k) * 0.45; g.lineWidth = 1 + 2.5 * f.power * (1 - f.k); g.stroke();
+    }
+  }
+
+  // each point is pushed outwards and lights up as a ring front passes through it
+  g.globalCompositeOperation = 'lighter';
+  for (const p of st.p) {
+    p.a += p.sp * 0.016 * (0.5 + s.level);
+    let push = 0, glow = 0;
+    for (const f of fronts) {
+      const d = (p.r - f.rad) / 0.07;
+      const w = Math.exp(-d * d) * f.power * (1 - f.k);
+      push += w * 0.07;
+      glow += w;
+    }
+    const r = R * Math.min(0.96, p.r + push + s.level * 0.015);
+    const size = 1 + p.z * 1.4 + Math.min(2.5, glow * 2.2);
+    g.fillStyle = glow > 0.5 ? WHITE : p.z > 0.55 ? LILAC : BLUE;
+    g.globalAlpha = Math.min(1, 0.3 + p.z * 0.25 + glow * 0.8);
+    g.fillRect(Math.cos(p.a) * r - size / 2, Math.sin(p.a) * r - size / 2, size, size);
+  }
+  // a small heart that beats with the voice
+  g.globalCompositeOperation = 'source-over'; g.globalAlpha = 0.9;
+  g.beginPath(); g.arc(0, 0, R * (0.025 + 0.045 * s.level), 0, Math.PI * 2); g.fillStyle = WHITE; g.fill();
+}
+V.rippleDust = (g, R, s, st) => rippleDust(g, R, s, st, true);
+V.dustWaves = (g, R, s, st) => rippleDust(g, R, s, st, false);
 
 /* ---------------- drawing loop ---------------- */
 const canvases = [...document.querySelectorAll('canvas[data-v]')].map((c) => ({ c, g: c.getContext('2d'), st: {} }));
