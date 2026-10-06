@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="T3">
+<title>Tales Through Things</title>
+<style>
+  @font-face {
+    font-family: 'Lexend';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: block;
+    src: url(fonts/lexend-latin.woff2) format('woff2');
+  }
+
+  :root {
+    --orange: #E3963E;
+    --blue: #5F5DFF;
+    --k: 1; /* stage scale, set by JS */
+    /* Calibrated on the iPad (Home Screen app, full-screen 768x1024 viewport) so the disc
+       sits under the physical cover: 465.3pt wide, centre at (384, 523.4)pt. */
+    --disc: 542.5px;   /* black circle diameter in mockup px. Ring + 3D follow it. */
+    --disc-y: 610.3px; /* circle centre from the top of the 1194px mockup */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    /* no overflow: hidden here: as a Home Screen app it clips the background
+       above the bottom strip (home indicator). See #extend below. */
+    background: var(--orange);
+    font-family: 'Lexend', system-ui, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    touch-action: none;
+    overscroll-behavior: none;
+  }
+
+  /* As a Home Screen app, iPadOS only gives the page the full screen (bottom strip
+     included) when the page is taller than the screen. app.js keeps it pinned at the top. */
+  #extend {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 1px;
+    height: calc(100% + 120px);
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  #bg {
+    position: fixed;
+    inset: -120px;
+    background: var(--orange);
+    overflow: hidden;
+  }
+  .wipe { position: absolute; inset: 0; }
+
+  /* ---------- Stage: the 834 x 1194 mockup coordinate space ---------- */
+  #stage {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    width: 834px;
+    height: 1194px;
+    transform: translate(-50%, -50%) scale(var(--k));
+    transform-origin: 50% 50%;
+  }
+
+  #ring {
+    position: absolute;
+    inset: 0;
+    width: 834px;
+    height: 1194px;
+    overflow: visible;
+  }
+
+  /* The disc must never move or animate: it lines up with a physical cover on the iPad. */
+  #disc {
+    position: absolute;
+    left: calc(417px - var(--disc) / 2);
+    top: calc(var(--disc-y) - var(--disc) / 2);
+    width: var(--disc);
+    height: var(--disc);
+    border-radius: 50%;
+    background: #000;
+    overflow: hidden;
+  }
+
+  .copy {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 600ms ease;
+    pointer-events: none;
+  }
+  .copy.on { opacity: 1; }
+
+  /* text slots: AI-written questions, scenario lines; size is fitted by app.js */
+  .say {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 calc(var(--disc) * 0.12);
+    color: #fff;
+    text-align: center;
+    font-weight: 500;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+  .say.on { transition: opacity 700ms ease 450ms; } /* in after the old one is out */
+
+  /* haiku under the turning object */
+  #haiku {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: calc(var(--disc) * 0.665);
+    color: #fff;
+    text-align: center;
+    font-size: 21px;
+    font-weight: 500;
+    line-height: 29px;
+    transition: opacity 500ms ease;
+  }
+  #haiku.on { transition: opacity 1400ms ease 900ms; }
+
+  #gb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 800ms ease;
+  }
+  #gb.on { opacity: 1; }
+
+  #wave { width: 100%; height: 100%; }
+
+  /* operator overlay (press H) */
+  #hud {
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    font: 12px/1.3 ui-monospace, monospace;
+    color: rgba(0,0,0,.55);
+    display: none;
+    white-space: pre;
+  }
+  #hud.on { display: block; }
+</style>
+</head>
+<body>
+  <div id="extend"></div>
+  <div id="bg"></div>
+
+  <div id="stage">
+    <svg id="ring" viewBox="0 0 834 1194" aria-hidden="true">
+      <circle id="ring-arc" cx="417" cy="597" r="296" fill="none"
+              stroke="#5F5DFF" stroke-width="36" stroke-linecap="butt"
+              transform="rotate(-126 417 597)"/>
+    </svg>
+
+    <div id="disc">
+      <canvas id="gb"></canvas>
+      <canvas id="wave" class="copy"></canvas>
+      <div class="copy say" id="say-a"></div>
+      <div class="copy say" id="say-b"></div>
+      <div class="copy" id="haiku"></div>
+    </div>
+  </div>
+
+  <div id="hud"></div>
+
+  <script type="module" src="app.js"></script>
+  <script type="module" src="livereload.js"></script>
+</body>
+</html>

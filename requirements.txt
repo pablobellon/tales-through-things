@@ -1,0 +1,6 @@
+anthropic==1.11.0
+openai==3.24.0
+fal-client==1.0.3
+numpy==2.5.3
+trimesh==5.1.1
+pillow==12.3.0

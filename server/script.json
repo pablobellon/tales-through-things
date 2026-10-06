@@ -1,0 +1,69 @@
+{
+  "_comment": "Scenario texts (from 'Tales of Things.txt'). The first question of a theme is asked word for word; the others inspire the AI's follow-up questions.",
+
+  "lines": {
+    "intro": ["I collect memories and turn them into objects.", "Have a look at a few of them."],
+    "invite": "What about one of your memories? Would you like to turn it into an object?",
+    "unclear": "Sorry, I didn't catch that. Would you like to turn one of your memories into an object?",
+    "thanks": ["Thank you! I think I have enough to remember.", "Let me turn your memory into an object."],
+    "generating": ["Your memory is taking shape…", "Gathering the light, the sounds, the textures…", "Almost there…"],
+    "archive": "Would you like to add your memory to the archive?",
+    "archived": "Your memory has joined the collection.",
+    "not_archived": "We’ll keep this one out of the archive.",
+    "retry": "Hold the button while you speak to record.",
+    "error": "Something went wrong. Let’s start again."
+  },
+
+  "themes": {
+    "toy": {
+      "title": "A favourite toy",
+      "questions": [
+        "Think of a toy you once loved. What was it?",
+        "How did it feel in your hands?",
+        "What colour do you remember? What sound did it make?",
+        "Did your toy have a name? What did you call it?",
+        "Where is your toy now?"
+      ]
+    },
+    "summer": {
+      "title": "A summer memory",
+      "questions": [
+        "Think of your favourite summer holiday. Where were you?",
+        "What could you see from where you were?",
+        "What colours do you remember?",
+        "What did you play with?",
+        "What did you collect or bring home?"
+      ]
+    },
+    "dish": {
+      "title": "A favourite dish",
+      "questions": [
+        "Think of your favourite dish as a child. What was it called?",
+        "What was it made of?",
+        "What did it smell, look, or taste like?",
+        "Who usually made it for you?",
+        "What sound did it make when you ate it?"
+      ]
+    },
+    "outside": {
+      "title": "Outside",
+      "questions": [
+        "Think of a place outside where you loved to play. What did it look like?",
+        "What swing, slide, tree did you love most?",
+        "How did you get there?",
+        "Who did you share this place with?",
+        "What sound, smell, or feeling brings you back there?"
+      ]
+    },
+    "pocket": {
+      "title": "Pocket",
+      "questions": [
+        "Imagine emptying your pockets as a child. What would you find?",
+        "What colour and shape is it?",
+        "What did it feel like in your hand?",
+        "What sound did it make?",
+        "What did you usually do with it?"
+      ]
+    }
+  }
+}

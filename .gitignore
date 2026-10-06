@@ -1,0 +1,20 @@
+# secrets — never commit
+.env
+api.env
+*.env
+!.env.example
+certs/
+
+# visitors' memories and work in progress
+archive/
+runs/
+
+# local tooling
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+web/_*.html
+
+# server secret (signs login cookies)
+.t3-secret
