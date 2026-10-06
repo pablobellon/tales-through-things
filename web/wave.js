@@ -1,13 +1,22 @@
 /*
- * Microphone: the voice feedback drawn inside the black disc during recording
- * ("bold soft ripples": each syllable sends a ring of blue light outwards;
- * other ideas are in voice-lab.html),
+ * Microphone: sound-reactive wave drawn inside the black disc during recording,
  * and the recording itself (16 kHz mono WAV, sent to the Mac for transcription).
  *
- * If the mic is unavailable (no permission, not HTTPS...), a gentle simulated
- * voice keeps it moving so the sequence still works.
+ * Mic input -> AnalyserNode -> 3 smoothed band levels (low / mid / high)
+ * that drive the amplitude of 3 layered sine lines.
+ * If the mic is unavailable (no permission, not HTTPS...), the wave keeps
+ * moving with a gentle simulated level so the sequence still works.
  */
 
+const LINES = [
+  // band: which level drives it · f: cycles across the wave · speed: rad/s
+  { band: 'low',  color: '#5F5DFF', width: 4, f: 1.3, speed: 2.2,  phase: 0.0 },
+  { band: 'mid',  color: '#A9A8FF', width: 3, f: 2.1, speed: -3.0, phase: 1.7 },
+  { band: 'all',  color: '#FFFFFF', width: 3, f: 1.7, speed: 2.8,  phase: 3.1 },
+];
+
+const MIN_AMP = 0.015; // fraction of the disc radius when silent
+const MAX_AMP = 0.42;  // fraction of the disc radius when loud
 const GAIN = 3.2;      // base mic gain
 const SENSITIVITY = 2.5; // overall multiplier: raise for a more reactive wave
 const CURVE = 0.6;     // < 1 boosts quiet sounds more than loud ones (1 = linear)
@@ -151,12 +160,6 @@ export function createWave(canvas, size) {
     }
   }
 
-  // ---- bold soft ripples (voice lab option 10): each syllable sends a thick ring
-  // of blue light from the centre to the edge; louder = thicker. Blue only.
-  const LIFE = 2.8;
-  let rings = [];
-  let nextRing = 0, prevAll = 0;
-
   return {
     resize(stageScale) {
       pr = Math.min(3, (window.devicePixelRatio || 1) * stageScale);
@@ -166,45 +169,39 @@ export function createWave(canvas, size) {
     draw(now) {
       const t = now / 1000;
       readLevels(t);
-      const level = levels.all;
 
-      // a syllable starts (sharp rise), or steady speech: a new ring
-      const onset = level - prevAll > 0.08 && level > 0.2;
-      prevAll = level;
-      if ((onset || (level > 0.2 && t > nextRing)) && rings.length < 8) {
-        rings.push({ born: t, w: 10 + level * 26 });
-        nextRing = t + 0.42;
-      }
-      rings = rings.filter((r) => t - r.born < LIFE);
+      const W = canvas.width, H = canvas.height;
+      const R = W / 2;
+      const span = W * 0.78;        // wave stays inside the circle
+      const x0 = (W - span) / 2;
+      const steps = 120;
 
-      const W = canvas.width;
-      const unit = W / 300;            // sizes below are in a 300-unit disc
-      const R = 150 * 0.92;
-      g.setTransform(1, 0, 0, 1, 0, 0);
-      g.clearRect(0, 0, W, W);
-      g.setTransform(unit, 0, 0, unit, W / 2, W / 2);
+      g.clearRect(0, 0, W, H);
+      g.globalCompositeOperation = 'lighter';
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
 
-      for (const r of rings) {
-        const k = (t - r.born) / LIFE;
-        const rad = R * (0.1 + 0.82 * Math.sqrt(k));
-        const w = r.w * (1 - 0.65 * k);
-        const alpha = Math.min(1, (1 - k) * 1.4) * Math.min(1, k * 12); // quick in, slow out
-        // a ring of light: transparent → blue → transparent across its width
-        const grad = g.createRadialGradient(0, 0, Math.max(0, rad - w), 0, 0, rad + w);
-        grad.addColorStop(0, 'rgba(95,93,255,0)');
-        grad.addColorStop(0.5, `rgba(95,93,255,${alpha})`);
-        grad.addColorStop(1, 'rgba(95,93,255,0)');
+      for (const L of LINES) {
+        const amp = R * (MIN_AMP + (MAX_AMP - MIN_AMP) * levels[L.band]);
         g.beginPath();
-        g.arc(0, 0, rad + w, 0, Math.PI * 2);
-        g.arc(0, 0, Math.max(0, rad - w), 0, Math.PI * 2, true);
-        g.fillStyle = grad;
-        g.fill();
+        for (let i = 0; i <= steps; i++) {
+          const u = i / steps;                    // 0..1 across
+          const env = Math.pow(Math.sin(Math.PI * u), 2); // pinned at both ends
+          const a = u * Math.PI * 2 * L.f;
+          const y =
+            Math.sin(a + t * L.speed + L.phase) * 0.75 +
+            Math.sin(a * 2.3 - t * L.speed * 1.3 + L.phase) * 0.25 * (0.5 + levels.high);
+          const px = x0 + u * span;
+          const py = H / 2 + y * amp * env;
+          i ? g.lineTo(px, py) : g.moveTo(px, py);
+        }
+        g.strokeStyle = L.color;
+        g.lineWidth = L.width * pr;
+        g.globalAlpha = 0.9;
+        g.stroke();
       }
-      // the centre breathes with the voice
-      g.beginPath();
-      g.arc(0, 0, R * (0.06 + 0.07 * level), 0, Math.PI * 2);
-      g.fillStyle = '#5F5DFF';
-      g.fill();
+      g.globalAlpha = 1;
+      g.globalCompositeOperation = 'source-over';
     },
   };
 }
