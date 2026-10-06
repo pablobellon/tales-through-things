@@ -23,13 +23,13 @@ MOCK = os.path.join(ROOT, 'server', 'mock')
 # The demo objects, told by the objects themselves: they seed an empty archive.
 SEED = [
     ('gameboy', 'Game Boy', 'toy', 0.12,
-     ['Under the blanket', 'my small light keeps you awake —', 'one more level, still']),
+     ['Under the blanket', 'my small light keeps you awake,', 'one more level, still']),
     ('bicycle', 'bicycle', 'outside', 0.10,
-     ['His hand lets go —', 'for three seconds only I', 'hold the summer up']),
+     ['His hand lets go,', 'for three seconds only I', 'hold the summer up']),
     ('camera', 'disposable camera', 'summer', 0.15,
-     ['Twenty-seven blinks,', 'half of them blurred by laughter —', 'you kept every one']),
+     ['Twenty-seven blinks,', 'half of them blurred by laughter,', 'you kept every one']),
     ('tin', 'biscuit tin', 'pocket', 0.32,
-     ['Sunday, my lid lifts —', 'no biscuits, only buttons,', 'and still you smile']),
+     ['Sunday, my lid lifts,', 'no biscuits, only buttons,', 'and still you smile']),
 ]
 
 

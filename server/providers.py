@@ -25,6 +25,7 @@ import urllib.request
 from archive import MOCK, SEED
 import prompts
 from syllables import pattern
+from textclean import clean_lines, no_dashes
 
 # Haiku style: 'strict' = classic form, checked (5-7-5 counted here, season word, cut);
 #              'free'   = haiku-inspired three lines (the earlier behaviour).
@@ -182,7 +183,7 @@ class CloudProviders(MockProviders):
             {'type': 'object', 'additionalProperties': False, 'required': ['question'],
              'properties': {'question': {'type': 'string'}}},
             max_tokens=4000, effort='low')
-        return out['question'].strip()
+        return no_dashes(out['question'])
 
     def compose(self, theme, qa):
         if not self.claude:
@@ -201,7 +202,7 @@ class CloudProviders(MockProviders):
             {'type': 'object', 'additionalProperties': False,
              'required': list(props), 'properties': props},
             max_tokens=8000, effort='medium')
-        haiku = [l.strip() for l in out['haiku'] if l.strip()][:3]
+        haiku = clean_lines(out['haiku'])[:3]
         if strict:
             haiku = self._check_haiku(haiku, out.get('season_word', ''))
         print(f'  object: {out["object"]!r}\n  haiku: {haiku} {pattern(haiku)}', flush=True)
@@ -242,7 +243,7 @@ class CloudProviders(MockProviders):
                 {'type': 'object', 'additionalProperties': False, 'required': ['haiku'],
                  'properties': {'haiku': {'type': 'array', 'items': {'type': 'string'}}}},
                 max_tokens=4000, effort='low')
-            haiku = [l.strip() for l in out['haiku'] if l.strip()][:3]
+            haiku = clean_lines(out['haiku'])[:3]
         print('  haiku: kept the closest version', flush=True)
         return best
 

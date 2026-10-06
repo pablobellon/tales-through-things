@@ -4,7 +4,7 @@ import {
 } from './wave.js';
 
 /*
- * Tales Through Things — the iPad side.
+ * Tales Through Things: the iPad side.
  *
  *   intro → browse 3 memories → "would you like to turn one into an object?"
  *     not yet → 3 more memories → ask again

@@ -27,7 +27,7 @@ the surroundings, to a small detail, to the people, to the heart of the moment.
 eyes... Never a yes/no question, never a choice between two options.
 5. It is warm, quiet and simple, like a close friend gently asking. No compliments, no \
 comments, no reformulation, no explanation: just the question.
-6. At most 90 characters, one sentence, in English.
+6. At most 90 characters, one sentence, in English. Never use dashes (— or –).
 
 Never ask about an object on purpose, never mention objects, generating, or what will \
 happen next. Something from the memory will be revealed to them at the end as a \
@@ -80,7 +80,8 @@ texture, season, a gesture) taken from what the visitor shared
    - show, don't explain; never name an emotion; no morals, no abstractions
    - surprising and not literal: let the object reveal something only it could know, \
 it was there, it witnessed the moment
-   - a small pause or turn between two images (a dash or a line break)
+   - a small pause or turn between two images, made by the line break or a comma
+   - never use dashes (— or –) anywhere
    - never the visitor's name or other people's names
    - simple, contemporary English
 
@@ -94,15 +95,16 @@ _FREE_HAIKU = COMPOSER[COMPOSER.index('3. Write a haiku told BY the object'):COM
 
 _STRICT_HAIKU = """3. Write a true haiku told BY the object, speaking quietly to the visitor ("you").
    - exactly three lines of 5, 7 and 5 syllables; count every syllable carefully
-   - one season word (kigo) that fits this memory: from a season the visitor mentioned \\
-or clearly implied (summer heat, cicadas, first snow, spring rain, autumn leaves, \\
-long evening light...); give that word or phrase in "season_word", exactly as it \\
+   - one season word (kigo) that fits this memory: from a season the visitor mentioned \
+or clearly implied (summer heat, cicadas, first snow, spring rain, autumn leaves, \
+long evening light...); give that word or phrase in "season_word", exactly as it \
 appears in the haiku
-   - one cut (kireji): a dash at the end of the first or second line, setting two \\
-images side by side
-   - present tense, one single instant, concrete perception only: what the object \\
+   - one cut (kireji): a clear pause at the end of the first or second line, setting \
+two images side by side; mark it with the line break alone or a comma, never a dash
+   - never use dashes (— or –) anywhere
+   - present tense, one single instant, concrete perception only: what the object \
 sees, hears, touches or feels right now
-   - no metaphor, no simile, no explanation, no story across several sentences, \\
+   - no metaphor, no simile, no explanation, no story across several sentences, \
 never name an emotion
    - the object may say "I", "me", "my", but stays restrained: perception, not commentary
    - use details the visitor gave, never anyone's name; simple, contemporary English
@@ -111,9 +113,9 @@ never name an emotion
 
 COMPOSER_STRICT = COMPOSER.replace(_FREE_HAIKU, _STRICT_HAIKU)
 
-HAIKU_FIX = """You revise haiku so that they follow the classic form exactly. You receive a \\
-haiku, the syllable counts measured with a pronunciation dictionary, and what must \\
-be fixed. Change as few words as possible: keep the images, the season word, the \\
-cut (dash), the present tense and the object's quiet first-person voice. Each line \\
-must have exactly the required number of syllables (5, 7, 5); trust the measured \\
-counts over your own."""
+HAIKU_FIX = """You revise haiku so that they follow the classic form exactly. You receive a \
+haiku, the syllable counts measured with a pronunciation dictionary, and what must \
+be fixed. Change as few words as possible: keep the images, the season word, the \
+cut between two images, the present tense and the object's quiet first-person voice. Each line \
+must have exactly the required number of syllables (5, 7, 5); trust the measured \
+counts over your own. Never use dashes (— or –)."""
