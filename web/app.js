@@ -64,7 +64,9 @@ arcEl.setAttribute('transform', `rotate(-126 417 ${DISC_Y})`);
 const gbCanvas = document.getElementById('gb');
 const waveCanvas = document.getElementById('wave');
 const sayEls = [document.getElementById('say-a'), document.getElementById('say-b')];
-const haikuEl = document.getElementById('haiku');
+// two haiku slots, like the questions: the old one fades out while the new one fades in
+const haikuEls = [document.getElementById('haiku-a'), document.getElementById('haiku-b')];
+let haikuIndex = 0;
 const hud = document.getElementById('hud');
 
 let stageScale = 1;
@@ -298,8 +300,11 @@ function say(text) {
 }
 
 function showHaiku(lines) {
+  haikuEls[haikuIndex].classList.remove('on');
+  if (!lines) return;
+  haikuIndex = 1 - haikuIndex;
+  const haikuEl = haikuEls[haikuIndex];
   haikuEl.textContent = '';
-  if (!lines) return haikuEl.classList.remove('on');
   lines.forEach((l, i) => {
     if (i) haikuEl.appendChild(document.createElement('br'));
     haikuEl.appendChild(document.createTextNode(l));

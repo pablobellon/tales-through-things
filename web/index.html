@@ -119,7 +119,7 @@
   .say.on { transition: opacity 700ms ease 450ms; } /* in after the old one is out */
 
   /* haiku under the turning object */
-  #haiku {
+  .haiku {
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -131,7 +131,7 @@
     line-height: 29px;
     transition: opacity 500ms ease;
   }
-  #haiku.on { transition: opacity 1400ms ease 900ms; }
+  .haiku.on { transition: opacity 1400ms ease 900ms; }
 
   #gb {
     position: absolute;
@@ -174,7 +174,8 @@
       <canvas id="wave" class="copy"></canvas>
       <div class="copy say" id="say-a"></div>
       <div class="copy say" id="say-b"></div>
-      <div class="copy" id="haiku"></div>
+      <div class="copy haiku" id="haiku-a"></div>
+      <div class="copy haiku" id="haiku-b"></div>
     </div>
   </div>
 
