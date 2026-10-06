@@ -1,22 +1,12 @@
 /*
- * Microphone: sound-reactive wave drawn inside the black disc during recording,
+ * Microphone: the voice feedback drawn inside the black disc during recording
+ * ("dust waves": orbiting dots, each syllable sends a wave through them),
  * and the recording itself (16 kHz mono WAV, sent to the Mac for transcription).
  *
- * Mic input -> AnalyserNode -> 3 smoothed band levels (low / mid / high)
- * that drive the amplitude of 3 layered sine lines.
- * If the mic is unavailable (no permission, not HTTPS...), the wave keeps
- * moving with a gentle simulated level so the sequence still works.
+ * If the mic is unavailable (no permission, not HTTPS...), a gentle simulated
+ * voice keeps it moving so the sequence still works.
  */
 
-const LINES = [
-  // band: which level drives it · f: cycles across the wave · speed: rad/s
-  { band: 'low',  color: '#5F5DFF', width: 4, f: 1.3, speed: 2.2,  phase: 0.0 },
-  { band: 'mid',  color: '#A9A8FF', width: 3, f: 2.1, speed: -3.0, phase: 1.7 },
-  { band: 'all',  color: '#FFFFFF', width: 3, f: 1.7, speed: 2.8,  phase: 3.1 },
-];
-
-const MIN_AMP = 0.015; // fraction of the disc radius when silent
-const MAX_AMP = 0.42;  // fraction of the disc radius when loud
 const GAIN = 3.2;      // base mic gain
 const SENSITIVITY = 2.5; // overall multiplier: raise for a more reactive wave
 const CURVE = 0.6;     // < 1 boosts quiet sounds more than loud ones (1 = linear)
@@ -160,6 +150,26 @@ export function createWave(canvas, size) {
     }
   }
 
+  // ---- dust waves: points orbit the disc; each syllable sends a wave from the
+  // centre that pushes the points it passes and lights them up (no ring drawn)
+  const COLORS = ['#5F5DFF', '#A9A8FF', '#FFFFFF'];
+  const sprites = COLORS.map((c) => {
+    const s = document.createElement('canvas');
+    s.width = s.height = 32;
+    const sg = s.getContext('2d');
+    const grad = sg.createRadialGradient(16, 16, 0, 16, 16, 16);
+    grad.addColorStop(0, c); grad.addColorStop(0.55, c); grad.addColorStop(1, 'rgba(0,0,0,0)');
+    sg.fillStyle = grad; sg.beginPath(); sg.arc(16, 16, 16, 0, Math.PI * 2); sg.fill();
+    return s;
+  });
+  const DOTS = 900, LIFE = 2.6;
+  const dots = Array.from({ length: DOTS }, () => ({
+    r: 0.1 + Math.pow(Math.random(), 0.6) * 0.8, a: Math.random() * Math.PI * 2,
+    sp: (0.08 + Math.random() * 0.25) * (Math.random() < 0.5 ? -1 : 1), z: Math.random(),
+  }));
+  let rings = [];
+  let nextRing = 0, prevAll = 0, lastT = null;
+
   return {
     resize(stageScale) {
       pr = Math.min(3, (window.devicePixelRatio || 1) * stageScale);
@@ -168,40 +178,53 @@ export function createWave(canvas, size) {
     },
     draw(now) {
       const t = now / 1000;
+      const dt = lastT === null ? 0.016 : Math.min(0.05, t - lastT);
+      lastT = t;
       readLevels(t);
+      const level = levels.all;
 
-      const W = canvas.width, H = canvas.height;
-      const R = W / 2;
-      const span = W * 0.78;        // wave stays inside the circle
-      const x0 = (W - span) / 2;
-      const steps = 120;
-
-      g.clearRect(0, 0, W, H);
-      g.globalCompositeOperation = 'lighter';
-      g.lineCap = 'round';
-      g.lineJoin = 'round';
-
-      for (const L of LINES) {
-        const amp = R * (MIN_AMP + (MAX_AMP - MIN_AMP) * levels[L.band]);
-        g.beginPath();
-        for (let i = 0; i <= steps; i++) {
-          const u = i / steps;                    // 0..1 across
-          const env = Math.pow(Math.sin(Math.PI * u), 2); // pinned at both ends
-          const a = u * Math.PI * 2 * L.f;
-          const y =
-            Math.sin(a + t * L.speed + L.phase) * 0.75 +
-            Math.sin(a * 2.3 - t * L.speed * 1.3 + L.phase) * 0.25 * (0.5 + levels.high);
-          const px = x0 + u * span;
-          const py = H / 2 + y * amp * env;
-          i ? g.lineTo(px, py) : g.moveTo(px, py);
-        }
-        g.strokeStyle = L.color;
-        g.lineWidth = L.width * pr;
-        g.globalAlpha = 0.9;
-        g.stroke();
+      // a syllable starts (sharp rise), or steady speech: a new wave
+      const onset = level - prevAll > 0.08 && level > 0.2;
+      prevAll = level;
+      if ((onset || (level > 0.18 && t > nextRing)) && rings.length < 10) {
+        rings.push({ born: t, power: 0.4 + level });
+        nextRing = t + 0.38;
       }
-      g.globalAlpha = 1;
+      rings = rings.filter((r) => t - r.born < LIFE);
+      const fronts = rings.map((r) => {
+        const k = (t - r.born) / LIFE;
+        return { rad: 0.06 + 0.88 * Math.sqrt(k), k, power: r.power };
+      });
+
+      const W = canvas.width;
+      const R = (W / 2) * 0.92;
+      const unit = W / 300; // dot sizes in a 300-unit disc
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, W, W);
+      g.translate(W / 2, W / 2);
+      g.globalCompositeOperation = 'lighter';
+
+      for (const d of dots) {
+        d.a += d.sp * dt * (0.5 + level);
+        let push = 0, glow = 0;
+        for (const f of fronts) {
+          const x = (d.r - f.rad) / 0.07;
+          const w = Math.exp(-x * x) * f.power * (1 - f.k);
+          push += w * 0.07;
+          glow += w;
+        }
+        const r = R * Math.min(0.96, d.r + push + level * 0.015);
+        const size = (1.3 + d.z * 1.6 + Math.min(2.6, glow * 2.3)) * unit;
+        g.globalAlpha = Math.min(1, 0.3 + d.z * 0.25 + glow * 0.8);
+        g.drawImage(sprites[glow > 0.5 ? 2 : d.z > 0.55 ? 1 : 0],
+                    Math.cos(d.a) * r - size / 2, Math.sin(d.a) * r - size / 2, size, size);
+      }
+      // a small heart that beats with the voice
       g.globalCompositeOperation = 'source-over';
+      g.globalAlpha = 0.9;
+      g.drawImage(sprites[2], -R * (0.03 + 0.05 * level), -R * (0.03 + 0.05 * level),
+                  R * (0.06 + 0.1 * level), R * (0.06 + 0.1 * level));
+      g.globalAlpha = 1;
     },
   };
 }

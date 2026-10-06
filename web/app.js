@@ -1,4 +1,5 @@
 import { createPointCloud } from './pointcloud.js';
+import { createDustText } from './dusttext.js';
 import {
   createWave, initMic, resumeAudio, micStatus, startRecording, stopRecording,
 } from './wave.js';
@@ -65,6 +66,7 @@ const gbCanvas = document.getElementById('gb');
 const waveCanvas = document.getElementById('wave');
 const sayEls = [document.getElementById('say-a'), document.getElementById('say-b')];
 const haikuEl = document.getElementById('haiku');
+const dustCanvas = document.getElementById('dust');
 const hud = document.getElementById('hud');
 
 let stageScale = 1;
@@ -73,6 +75,7 @@ function fitStage() {
   document.documentElement.style.setProperty('--k', stageScale);
   objects.resize(stageScale, DISC_R * 2);
   wave.resize(stageScale);
+  dust.resize(stageScale);
 }
 
 /* ------------------------------------------------------------------ */
@@ -275,12 +278,27 @@ let sayText = '';
 const SAY_MAX = 47, SAY_MIN = 24;
 
 // Show a line in the disc (crossfade). Font size shrinks until it fits.
+// a text leaves: its letters scatter as dust
+function hideText(el) {
+  if (!el.classList.contains('on')) return;
+  dust.disappear(el);
+  el.style.transition = 'opacity 250ms ease';
+  el.classList.remove('on');
+}
+
+// a text arrives: dust gathers into its letters, then the crisp text takes over
+function revealText(el, delayMs = 0) {
+  const at = dust.appear(el, delayMs);
+  el.style.transition = `opacity 600ms ease ${at}ms`;
+  el.classList.add('on');
+}
+
 function say(text) {
   sayText = text || '';
   const out = sayEls[sayIndex];
   sayIndex = 1 - sayIndex;
   const el = sayEls[sayIndex];
-  out.classList.remove('on');
+  hideText(out);
   if (!text) return;
   el.textContent = '';
   const span = document.createElement('span');
@@ -293,13 +311,14 @@ function say(text) {
     size -= 2;
     el.style.fontSize = size + 'px';
   }
-  el.classList.add('on');
+  revealText(el, 200); // just after the previous text has scattered
   waveCanvas.classList.remove('on');
 }
 
 function showHaiku(lines) {
+  hideText(haikuEl);
+  if (!lines) return;
   haikuEl.textContent = '';
-  if (!lines) return haikuEl.classList.remove('on');
   lines.forEach((l, i) => {
     if (i) haikuEl.appendChild(document.createElement('br'));
     haikuEl.appendChild(document.createTextNode(l));
@@ -308,7 +327,7 @@ function showHaiku(lines) {
   const block = document.createElement('div');
   while (haikuEl.firstChild) block.appendChild(haikuEl.firstChild);
   haikuEl.appendChild(block);
-  haikuEl.classList.add('on');
+  revealText(haikuEl, 1200); // once the object has started to assemble
 }
 
 /* ------------------------------------------------------------------ */
@@ -386,7 +405,7 @@ function onPress() {
     startRecording();
     errorAnim = null;
     wipeTo('blue', true);
-    sayEls.forEach((el) => el.classList.remove('on'));
+    sayEls.forEach(hideText); // the question dissolves as the visitor speaks
     waveCanvas.classList.add('on');
     state = state.replace(/ \(recording\)$/, '') + ' (recording)';
   }
@@ -657,6 +676,7 @@ setInterval(() => {
 
 const objects = createPointCloud(gbCanvas);
 const wave = createWave(waveCanvas, DISC_R * 2);
+const dust = createDustText(dustCanvas, document.getElementById('disc'), DISC_R * 2);
 initMic();
 addEventListener('resize', fitStage);
 fitStage();
@@ -666,6 +686,7 @@ function frame(now) {
   updateRing(now);
   updateWipe(now);
   objects.update(now);
+  dust.draw(now);
   if (waiter && waiter.recording) waveUntil = now + 800;
   if (now < waveUntil) wave.draw(now);
   requestAnimationFrame(frame);

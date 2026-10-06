@@ -262,7 +262,7 @@ function rippleDust(g, R, s, st, drawRings) {
     const size = 1 + p.z * 1.4 + Math.min(2.5, glow * 2.2);
     g.fillStyle = glow > 0.5 ? WHITE : p.z > 0.55 ? LILAC : BLUE;
     g.globalAlpha = Math.min(1, 0.3 + p.z * 0.25 + glow * 0.8);
-    g.fillRect(Math.cos(p.a) * r - size / 2, Math.sin(p.a) * r - size / 2, size, size);
+    g.beginPath(); g.arc(Math.cos(p.a) * r, Math.sin(p.a) * r, size / 2, 0, Math.PI * 2); g.fill();
   }
   // a small heart that beats with the voice
   g.globalCompositeOperation = 'source-over'; g.globalAlpha = 0.9;

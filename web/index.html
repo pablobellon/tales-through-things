@@ -144,6 +144,8 @@
   #gb.on { opacity: 1; }
 
   #wave { width: 100%; height: 100%; }
+  /* dots that gather into texts / scatter from them (dusttext.js) */
+  #dust { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
   /* operator overlay (press H) */
   #hud {
@@ -175,6 +177,7 @@
       <div class="copy say" id="say-a"></div>
       <div class="copy say" id="say-b"></div>
       <div class="copy" id="haiku"></div>
+      <canvas id="dust"></canvas>
     </div>
   </div>
 
