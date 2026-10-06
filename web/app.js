@@ -470,15 +470,24 @@ async function intro() {
   await waitPress();
 }
 
+function shuffle(items) {
+  const a = [...items];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 async function browse() {
   state = 'browse';
   let list = [];
   try { list = await api('/api/collection'); } catch (e) { console.warn(e); }
   if (!list.length) return;
-  // prefer memories this visitor hasn't seen yet, newest first, then shuffle a little
+  // 3 memories at random among those not seen yet in this visit (every memory gets its turn)
   let pool = list.filter((m) => !seen.has(m.id));
   if (pool.length < BROWSE_COUNT) { seen = new Set(); pool = list; }
-  pool = pool.slice(0, BROWSE_COUNT * 3).sort(() => Math.random() - 0.5).slice(0, BROWSE_COUNT);
+  pool = shuffle(pool).slice(0, BROWSE_COUNT);
   pool.forEach((m) => objects.preload(m.points));
 
   say('');
