@@ -663,4 +663,16 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-api('/api/script').then((lines) => Object.assign(LINES, lines)).catch(() => {}).finally(experience);
+// Review: ?memory=<id> shows one archived memory (press R to leave)
+const reviewId = new URLSearchParams(location.search).get('memory');
+async function review(id) {
+  state = 'review';
+  const m = (await api('/api/collection')).find((x) => x.id === id);
+  if (!m) return say(`No memory "${id}"`);
+  gbCanvas.classList.add('on');
+  objects.show(m.points, m.tilt);
+  showHaiku(m.haiku);
+}
+
+api('/api/script').then((lines) => Object.assign(LINES, lines)).catch(() => {})
+  .finally(() => (reviewId ? review(reviewId) : experience()));

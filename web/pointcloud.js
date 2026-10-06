@@ -58,6 +58,12 @@ export function createPointCloud(canvas) {
   const slots = new Map();
   function slot(url) {
     let s = slots.get(url);
+    if (s && s.failed && url !== current) {
+      // a download that failed (network hiccup, file being replaced): try again
+      spin.remove(s.group);
+      slots.delete(url);
+      s = null;
+    }
     if (!s) {
       const group = new THREE.Group();
       group.visible = false;
@@ -250,9 +256,11 @@ function makeMaterial(uniforms) {
       void main() {
         float d = length(gl_PointCoord - 0.5);
         if (d > 0.5) discard;
-        float a = smoothstep(0.5, 0.2, d) * vColor.a * vFade * 0.45;
+        float a = smoothstep(0.5, 0.2, d) * vColor.a * vFade * 0.75;
         // lift the colours a little so the cloud glows like the reference
-        gl_FragColor = vec4(vColor.rgb * 1.35, a);
+        // real colours, with the darkest lifted a little so they still show on the black disc
+        vec3 rgb = 0.16 + vColor.rgb * 1.05;
+        gl_FragColor = vec4(min(rgb, 1.0), a);
       }
     `,
     transparent: true,

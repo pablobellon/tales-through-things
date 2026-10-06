@@ -51,8 +51,17 @@ def seed_if_empty():
                              'created': time.time() - 1000 * (len(SEED) - i), 'tilt': tilt})
 
 
+def _version(path):
+    # changes when the file changes, so iPads already open load the new object
+    try:
+        return int(os.path.getmtime(path))
+    except OSError:
+        return 0
+
+
 def _public(meta):
-    return dict(meta, points=f"/archive/{meta['id']}/points.bin")
+    pb = os.path.join(ARCHIVE, meta['id'], 'points.bin')
+    return dict(meta, points=f"/archive/{meta['id']}/points.bin?v={_version(pb)}")
 
 
 def list_memories():
