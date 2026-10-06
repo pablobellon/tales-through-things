@@ -39,6 +39,8 @@
   </div>
 </header>
 <main>
+  <figure><canvas data-v="boldRipples"></canvas><figcaption><b>9. Bold ripples</b><span>thick blue rings, thicker when louder</span></figcaption></figure>
+  <figure><canvas data-v="softRipples"></canvas><figcaption><b>10. Bold soft ripples</b><span>the same, with glowing soft edges</span></figcaption></figure>
   <figure><canvas data-v="rippleDust"></canvas><figcaption><b>7. Ripples + dust</b><span>rings move through the orbiting points</span></figcaption></figure>
   <figure><canvas data-v="dustWaves"></canvas><figcaption><b>8. Dust waves</b><span>the same, the rings only seen in the dust</span></figcaption></figure>
   <figure><canvas data-v="halo"></canvas><figcaption><b>1. Halo</b><span>the waveform wrapped into a ring</span></figcaption></figure>
@@ -270,6 +272,43 @@ function rippleDust(g, R, s, st, drawRings) {
 }
 V.rippleDust = (g, R, s, st) => rippleDust(g, R, s, st, true);
 V.dustWaves = (g, R, s, st) => rippleDust(g, R, s, st, false);
+
+/* ---------------- bold blue ripples ---------------- */
+
+function boldRipples(g, R, s, st, soft) {
+  st.rings = st.rings || [];
+  st.next = st.next || 0;
+  const LIFE = 2.8;
+  if ((s.onset || (s.level > 0.2 && s.t > st.next)) && st.rings.length < 8) {
+    st.rings.push({ born: s.t, w: 10 + s.level * 26 });  // louder = thicker
+    st.next = s.t + 0.42;
+  }
+  st.rings = st.rings.filter((r) => s.t - r.born < LIFE);
+  for (const r of st.rings) {
+    const k = (s.t - r.born) / LIFE;
+    const rad = R * (0.1 + 0.82 * Math.sqrt(k));
+    const w = r.w * (1 - 0.65 * k);
+    const alpha = Math.min(1, (1 - k) * 1.4) * Math.min(1, k * 12); // quick fade in, slow fade out
+    if (soft) {
+      // a ring of light: transparent → blue → transparent across its width
+      const grad = g.createRadialGradient(0, 0, Math.max(0, rad - w), 0, 0, rad + w);
+      grad.addColorStop(0, 'rgba(95,93,255,0)');
+      grad.addColorStop(0.5, `rgba(95,93,255,${alpha})`);
+      grad.addColorStop(1, 'rgba(95,93,255,0)');
+      g.beginPath(); g.arc(0, 0, rad + w, 0, Math.PI * 2); g.arc(0, 0, Math.max(0, rad - w), 0, Math.PI * 2, true);
+      g.fillStyle = grad; g.globalAlpha = 1; g.fill();
+    } else {
+      g.beginPath(); g.arc(0, 0, rad, 0, Math.PI * 2);
+      g.strokeStyle = BLUE; g.lineWidth = w; g.globalAlpha = alpha; g.stroke();
+    }
+  }
+  // the centre breathes with the voice
+  g.globalAlpha = 1;
+  g.beginPath(); g.arc(0, 0, R * (0.06 + 0.07 * s.level), 0, Math.PI * 2);
+  g.fillStyle = BLUE; g.fill(); // only blue, no white
+}
+V.boldRipples = (g, R, s, st) => boldRipples(g, R, s, st, false);
+V.softRipples = (g, R, s, st) => boldRipples(g, R, s, st, true);
 
 /* ---------------- drawing loop ---------------- */
 const canvases = [...document.querySelectorAll('canvas[data-v]')].map((c) => ({ c, g: c.getContext('2d'), st: {} }));
