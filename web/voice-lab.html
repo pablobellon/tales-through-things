@@ -39,6 +39,7 @@
   </div>
 </header>
 <main>
+  <figure><canvas data-v="lines"></canvas><figcaption><b>0. Original lines</b><span>the first version: three sound waves across the disc</span></figcaption></figure>
   <figure><canvas data-v="boldRipples"></canvas><figcaption><b>9. Bold ripples</b><span>thick blue rings, thicker when louder</span></figcaption></figure>
   <figure><canvas data-v="softRipples"></canvas><figcaption><b>10. Bold soft ripples</b><span>the same, with glowing soft edges</span></figcaption></figure>
   <figure><canvas data-v="rippleDust"></canvas><figcaption><b>7. Ripples + dust</b><span>rings move through the orbiting points</span></figcaption></figure>
@@ -272,6 +273,37 @@ function rippleDust(g, R, s, st, drawRings) {
 }
 V.rippleDust = (g, R, s, st) => rippleDust(g, R, s, st, true);
 V.dustWaves = (g, R, s, st) => rippleDust(g, R, s, st, false);
+
+/* ---------------- 0. the original voice animation (first version of the experience) ---------------- */
+
+V.lines = (g, R, s, st) => {
+  // same lines and settings as the first version: band level → amplitude
+  let low = 0, mid = 0;
+  for (let i = 0; i < 12; i++) low += s.bins[i] / 12;
+  for (let i = 12; i < 40; i++) mid += s.bins[i] / 28;
+  const lv = { low: Math.min(1, low * 1.3), mid: Math.min(1, mid * 1.5), all: s.level };
+  const LINES = [
+    { band: 'low', color: BLUE,  width: 4, f: 1.3, speed: 2.2,  phase: 0.0 },
+    { band: 'mid', color: LILAC, width: 3, f: 2.1, speed: -3.0, phase: 1.7 },
+    { band: 'all', color: WHITE, width: 3, f: 1.7, speed: 2.8,  phase: 3.1 },
+  ];
+  const span = R * 2 * 0.85, x0 = -span / 2, steps = 120;
+  g.globalCompositeOperation = 'lighter';
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const L of LINES) {
+    const amp = R * (0.015 + (0.42 - 0.015) * lv[L.band]);
+    g.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const u = i / steps;
+      const env = Math.pow(Math.sin(Math.PI * u), 2);
+      const a = u * Math.PI * 2 * L.f;
+      const y = Math.sin(a + s.t * L.speed + L.phase) * 0.75 +
+                Math.sin(a * 2.3 - s.t * L.speed * 1.3 + L.phase) * 0.25 * (0.5 + s.level);
+      i ? g.lineTo(x0 + u * span, y * amp * env) : g.moveTo(x0 + u * span, y * amp * env);
+    }
+    g.strokeStyle = L.color; g.lineWidth = L.width; g.globalAlpha = 0.9; g.stroke();
+  }
+};
 
 /* ---------------- bold blue ripples ---------------- */
 
