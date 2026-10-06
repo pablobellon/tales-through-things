@@ -39,6 +39,7 @@
   </div>
 </header>
 <main>
+  <figure><canvas data-v="circles"></canvas><figcaption><b>11. Original circles</b><span>the first version's three waves, as overlapping rings</span></figcaption></figure>
   <figure><canvas data-v="lines"></canvas><figcaption><b>0. Original lines</b><span>the first version: three sound waves across the disc</span></figcaption></figure>
   <figure><canvas data-v="boldRipples"></canvas><figcaption><b>9. Bold ripples</b><span>thick blue rings, thicker when louder</span></figcaption></figure>
   <figure><canvas data-v="softRipples"></canvas><figcaption><b>10. Bold soft ripples</b><span>the same, with glowing soft edges</span></figcaption></figure>
@@ -301,6 +302,38 @@ V.lines = (g, R, s, st) => {
                 Math.sin(a * 2.3 - s.t * L.speed * 1.3 + L.phase) * 0.25 * (0.5 + s.level);
       i ? g.lineTo(x0 + u * span, y * amp * env) : g.moveTo(x0 + u * span, y * amp * env);
     }
+    g.strokeStyle = L.color; g.lineWidth = L.width; g.globalAlpha = 0.9; g.stroke();
+  }
+};
+
+/* ---------------- 11. the original waves wrapped into circles ---------------- */
+
+V.circles = (g, R, s, st) => {
+  let low = 0, mid = 0;
+  for (let i = 0; i < 12; i++) low += s.bins[i] / 12;
+  for (let i = 12; i < 40; i++) mid += s.bins[i] / 28;
+  const lv = { low: Math.min(1, low * 1.3), mid: Math.min(1, mid * 1.5), all: s.level };
+  // same lines as the original; f = whole waves around the ring so it closes seamlessly
+  const LINES = [
+    { band: 'low', color: BLUE,  width: 4, f: 3, speed: 2.2,  phase: 0.0 },
+    { band: 'mid', color: LILAC, width: 3, f: 5, speed: -3.0, phase: 1.7 },
+    { band: 'all', color: WHITE, width: 3, f: 4, speed: 2.8,  phase: 3.1 },
+  ];
+  const base = R * 0.5, steps = 240;
+  g.globalCompositeOperation = 'lighter';
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  for (const L of LINES) {
+    const amp = R * (0.015 + (0.42 - 0.015) * lv[L.band]) * 0.6;
+    g.beginPath();
+    for (let i = 0; i <= steps; i++) {
+      const u = i / steps, ang = u * Math.PI * 2;
+      const a = ang * L.f;
+      const y = Math.sin(a + s.t * L.speed + L.phase) * 0.75 +
+                Math.sin(a * 2 - s.t * L.speed * 1.3 + L.phase) * 0.25 * (0.5 + s.level);
+      const r = base + y * amp;
+      i ? g.lineTo(Math.cos(ang) * r, Math.sin(ang) * r) : g.moveTo(Math.cos(ang) * r, Math.sin(ang) * r);
+    }
+    g.closePath();
     g.strokeStyle = L.color; g.lineWidth = L.width; g.globalAlpha = 0.9; g.stroke();
   }
 };
