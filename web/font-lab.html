@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>T3 font lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500&family=Comfortaa:wght@400;500&family=Nunito:wght@400;500&family=Varela+Round&family=Josefin+Sans:wght@300;400&family=Cormorant+Garamond:ital,wght@0,500;1,500&family=Fraunces:ital,opsz,wght@0,9..144,400;1,9..144,400&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: Lexend; src: url(fonts/lexend-latin.woff2) format('woff2'); font-weight: 100 900; }
+  :root { --orange: #E3963E; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { background: var(--orange); color: #000; font-family: Lexend, system-ui, sans-serif; }
+  body { padding: 28px 16px 48px; }
+  header { max-width: 1150px; margin: 0 auto 26px; }
+  h1 { font-weight: 500; font-size: 24px; }
+  header p { font-size: 14px; max-width: 640px; line-height: 1.45; margin-top: 6px; }
+  .toggle { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .toggle button { font: inherit; font-size: 14px; border: 0; border-radius: 30px; padding: 8px 16px;
+                   background: rgba(0,0,0,.12); cursor: pointer; }
+  .toggle button.on { background: #000; color: #fff; }
+  main { max-width: 1150px; margin: 0 auto; display: grid; gap: 30px 24px;
+         grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); }
+  figure { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .disc { width: 100%; max-width: 330px; aspect-ratio: 1; border-radius: 50%; background: #000; color: #fff;
+          display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 13%; }
+  .q { font-size: clamp(20px, 6.6vw, 27px); line-height: 1.18; text-wrap: balance; }
+  .h { font-size: clamp(15px, 4.6vw, 18px); line-height: 1.55; display: none; }
+  body.haiku .q { display: none; }
+  body.haiku .h { display: block; }
+  figcaption { text-align: center; }
+  figcaption b { display: block; font-weight: 500; font-size: 17px; }
+  figcaption span { font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Fonts, a little more dreamy</h1>
+  <p>The same question and haiku in each candidate, inside the disc. All are open-source fonts that can be
+     embedded and used offline at the exhibition.</p>
+  <div class="toggle"><button id="bq" class="on">Question</button><button id="bh">Haiku</button></div>
+</header>
+<main id="grid"></main>
+<script>
+  const Q = 'Barefoot beside your grandmother in the morning garden, what is she doing?';
+  const H = ['Wet grass at my spout,', 'steam rises, she hums softly', 'by your bare small feet'];
+  const FONTS = [
+    ['Lexend (now)', 'Lexend', 500, 'normal', 'clear and modern, the current font'],
+    ['Quicksand', 'Quicksand', 500, 'normal', 'light, rounded, the original mockups'],
+    ['Comfortaa', 'Comfortaa', 500, 'normal', 'very circular and dreamy'],
+    ['Nunito', 'Nunito', 500, 'normal', 'rounded ends, warm, very readable'],
+    ['Varela Round', 'Varela Round', 400, 'normal', 'simple, soft and calm'],
+    ['Josefin Sans', 'Josefin Sans', 400, 'normal', 'vintage geometry, round O'],
+    ['Cormorant Garamond', 'Cormorant Garamond', 500, 'normal', 'literary, delicate'],
+    ['Fraunces', 'Fraunces', 400, 'normal', 'soft storybook serif'],
+    ['Pairing: Quicksand + Cormorant italic', ['Quicksand', 'Cormorant Garamond'], [500, 500], ['normal', 'italic'], 'questions rounded, haiku in a softer voice'],
+    ['Pairing: Nunito + Fraunces italic', ['Nunito', 'Fraunces'], [500, 400], ['normal', 'italic'], 'questions warm, haiku like an old book'],
+  ];
+  const grid = document.getElementById('grid');
+  for (const [name, fam, w, st, note] of FONTS) {
+    const [qf, hf] = Array.isArray(fam) ? fam : [fam, fam];
+    const [qw, hw] = Array.isArray(w) ? w : [w, w];
+    const [qs, hs] = Array.isArray(st) ? st : [st, st];
+    const serifH = /Cormorant|Fraunces/.test(hf);
+    const fig = document.createElement('figure');
+    fig.innerHTML = `
+      <div class="disc">
+        <div class="q" style="font-family:'${qf}';font-weight:${qw};font-style:${qs}${/Cormorant/.test(qf) ? ';font-size:clamp(23px,7.4vw,31px)' : ''}">${Q}</div>
+        <div class="h" style="font-family:'${hf}';font-weight:${hw};font-style:${hs}${serifH ? ';font-size:clamp(17px,5.4vw,21px)' : ''}">${H.join('<br>')}</div>
+      </div>
+      <figcaption><b>${name}</b><span>${note}</span></figcaption>`;
+    grid.appendChild(fig);
+  }
+  const bq = document.getElementById('bq'), bh = document.getElementById('bh');
+  bq.onclick = () => { document.body.classList.remove('haiku'); bq.classList.add('on'); bh.classList.remove('on'); };
+  bh.onclick = () => { document.body.classList.add('haiku'); bh.classList.add('on'); bq.classList.remove('on'); };
+</script>
+</body>
+</html>
