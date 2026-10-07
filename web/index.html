@@ -17,6 +17,22 @@
     src: url(fonts/lexend-latin.woff2) format('woff2');
   }
 
+  /* Josefin Sans: the experience's font (italic for the haiku). Lexend kept as fallback. */
+  @font-face {
+    font-family: 'Josefin Sans';
+    font-style: normal;
+    font-weight: 100 700;
+    font-display: block;
+    src: url(fonts/josefin-sans-normal.woff2) format('woff2');
+  }
+  @font-face {
+    font-family: 'Josefin Sans';
+    font-style: italic;
+    font-weight: 100 700;
+    font-display: block;
+    src: url(fonts/josefin-sans-italic.woff2) format('woff2');
+  }
+
   :root {
     --orange: #E3963E;
     --blue: #5F5DFF;
@@ -35,7 +51,7 @@
     /* no overflow: hidden here: as a Home Screen app it clips the background
        above the bottom strip (home indicator). See #extend below. */
     background: var(--orange);
-    font-family: 'Lexend', system-ui, sans-serif;
+    font-family: 'Josefin Sans', 'Lexend', system-ui, sans-serif;
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
@@ -112,7 +128,7 @@
     padding: 0 calc(var(--disc) * 0.12);
     color: #fff;
     text-align: center;
-    font-weight: 500;
+    font-weight: 400;
     line-height: 1.15;
     text-wrap: balance;
   }
@@ -126,9 +142,10 @@
     padding-top: calc(var(--disc) * 0.665);
     color: #fff;
     text-align: center;
-    font-size: 21px;
-    font-weight: 500;
-    line-height: 29px;
+    font-size: 23px;
+    font-weight: 400;
+    font-style: italic; /* the object's voice */
+    line-height: 31px;
     transition: opacity 500ms ease;
   }
   .haiku.on { transition: opacity 1400ms ease 900ms; }
