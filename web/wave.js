@@ -91,7 +91,21 @@ export function stopRecording() {
   const merged = new Float32Array(total || 1600);
   let o = 0;
   for (const c of parts) { merged.set(c, o); o += c.length; }
-  return encodeWav(downsample(merged, rate, 16000), 16000);
+  return encodeWav(normalize(downsample(merged, rate, 16000)), 16000);
+}
+
+// Some mics are very quiet without iOS processing (iPad Pro: voice peaks ~0.002 rms),
+// below the server's voice threshold. Bring the peak up, capped so silence stays silence.
+const TARGET_PEAK = 0.7;
+const MAX_GAIN = 40;
+
+function normalize(data) {
+  let peak = 0;
+  for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]));
+  const gain = peak > 0 ? Math.min(MAX_GAIN, TARGET_PEAK / peak) : 1;
+  if (gain <= 1) return data;
+  for (let i = 0; i < data.length; i++) data[i] *= gain;
+  return data;
 }
 
 function downsample(data, from, to) {
