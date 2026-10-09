@@ -66,26 +66,28 @@ export function createPointCloud(canvas) {
     }
     if (!s) {
       const group = new THREE.Group();
-      group.visible = false;
+      group.visible = url === current; // (re)created while on screen: show it once loaded
       spin.add(group);
-      s = { group, loaded: false, failed: false, used: 0 };
+      const created = { group, loaded: false, failed: false, used: 0 };
+      s = created;
       slots.set(url, s);
       loadPoints(url, MAX_POINTS).then((geometry) => {
+        if (slots.get(url) !== created) return geometry.dispose(); // evicted meanwhile
         group.add(new THREE.Points(geometry, material));
-        s.loaded = true;
+        created.loaded = true;
       }, (err) => {
         console.error(`Point cloud ${url} failed to load`, err);
-        s.failed = true;
+        created.failed = true;
       });
-      evict();
     }
     s.used = performance.now();
+    evict(url); // after `used` is set, or the newest slot looks the oldest and evicts itself
     return s;
   }
-  function evict() {
+  function evict(keep) {
     if (slots.size <= CACHE_SIZE) return;
     const old = [...slots.entries()]
-      .filter(([u]) => u !== current && u !== next)
+      .filter(([u]) => u !== current && u !== next && u !== keep)
       .sort((a, b) => a[1].used - b[1].used);
     for (const [u, s] of old.slice(0, slots.size - CACHE_SIZE)) {
       s.group.traverse((o) => o.geometry && o.geometry.dispose());
