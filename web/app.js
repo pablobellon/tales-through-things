@@ -462,7 +462,52 @@ function goFullscreen() {
 /* ------------------------------------------------------------------ */
 
 let session = null; // current visitor's session id (to discard it on reset)
-let seen = new Set();
+
+// The collection is dealt like a deck of cards: every memory once, in random order,
+// before any comes back (across visits and reloads), never the same object twice in a row.
+const DECK_KEY = 't3-deck';
+let deck = { left: [], dealt: [], last: null }; // ids to come · ids shown this round · last object
+try { deck = { ...deck, ...JSON.parse(localStorage.getItem(DECK_KEY)) }; } catch {}
+
+function saveDeck() {
+  try { localStorage.setItem(DECK_KEY, JSON.stringify(deck)); } catch {}
+}
+
+function dealMemories(list, n) {
+  const byId = new Map(list.map((m) => [m.id, m]));
+  const name = (id) => (byId.get(id).object || id).toLowerCase();
+  let left = deck.left.filter((id) => byId.has(id));
+  let dealt = deck.dealt.filter((id) => byId.has(id));
+  // memories archived since the round started join it at random places
+  for (const m of list) {
+    if (!left.includes(m.id) && !dealt.includes(m.id)) {
+      left.splice(Math.floor(Math.random() * (left.length + 1)), 0, m.id);
+    }
+  }
+  const picked = [];
+  let carry = []; // picked from the old round when a new one starts mid-batch
+  let last = deck.last;
+  while (picked.length < Math.min(n, list.length)) {
+    if (!left.length) {
+      // new round: the ones just seen go to the back
+      const recent = new Set([...dealt.slice(-n), ...picked]);
+      left = [...shuffle(list.map((m) => m.id).filter((id) => !recent.has(id))),
+        ...shuffle([...recent].filter((id) => !picked.includes(id)))];
+      carry = [...picked];
+      dealt = [];
+      if (!left.length) break;
+    }
+    // the next one that isn't the same object as the previous (when there is a choice)
+    const i = Math.max(0, left.findIndex((id) => name(id) !== last));
+    const [id] = left.splice(i, 1);
+    picked.push(id);
+    dealt.push(id);
+    last = name(id);
+  }
+  deck = { left: [...left, ...carry], dealt, last };
+  saveDeck();
+  return picked.map((id) => byId.get(id));
+}
 
 async function intro() {
   state = 'intro';
@@ -489,16 +534,12 @@ async function browse() {
   let list = [];
   try { list = await api('/api/collection'); } catch (e) { console.warn(e); }
   if (!list.length) return;
-  // 3 memories at random among those not seen yet in this visit (every memory gets its turn)
-  let pool = list.filter((m) => !seen.has(m.id));
-  if (pool.length < BROWSE_COUNT) { seen = new Set(); pool = list; }
-  pool = shuffle(pool).slice(0, BROWSE_COUNT);
+  const pool = dealMemories(list, BROWSE_COUNT);
   pool.forEach((m) => objects.preload(m.points));
 
   say('');
   for (let i = 0; i < pool.length; i++) {
     const m = pool[i];
-    seen.add(m.id);
     state = `browse ${i + 1}/${pool.length}`;
     gbCanvas.classList.add('on');
     objects.show(m.points, m.tilt);
@@ -589,8 +630,12 @@ async function createMemory() {
   showHaiku(null);
   const keep = (await askYesNo('archive')) === 'yes';
   await api(`/api/session/${session}/finish`, { method: 'POST', body: JSON.stringify({ keep }) });
+  if (keep) {
+    // archived under the session id: deal it first, so it shows up in the collection right away
+    deck.left = [session, ...deck.left.filter((id) => id !== session)];
+    saveDeck();
+  }
   session = null;
-  if (keep) seen = new Set(); // let it show up in the collection right away
   state = 'archived';
   say(keep ? LINES.archived : LINES.not_archived);
   await sleep(4500);
@@ -637,7 +682,6 @@ function reset() {
     waiter = null;
   }
   discardSession();
-  seen = new Set();
   errorAnim = null;
   breathe(null);
   waveCanvas.classList.remove('on');
