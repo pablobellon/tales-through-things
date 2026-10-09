@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>T3 Collection</title>
+<style>
+  /* All archived memories on one page: the selected one turns in the disc, the others
+     are listed below. Separate from the experience (index.html), same look. */
+  @font-face {
+    font-family: 'Josefin Sans';
+    font-style: normal;
+    font-weight: 100 700;
+    font-display: block;
+    src: url(fonts/josefin-sans-normal.woff2) format('woff2');
+  }
+  @font-face {
+    font-family: 'Josefin Sans';
+    font-style: italic;
+    font-weight: 100 700;
+    font-display: block;
+    src: url(fonts/josefin-sans-italic.woff2) format('woff2');
+  }
+
+  :root {
+    --orange: #E3963E;
+    --blue: #5F5DFF;
+    --ink: #1d1206;
+    --disc: min(78vw, 56vh, 460px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--orange);
+    color: var(--ink);
+    font-family: 'Josefin Sans', system-ui, sans-serif;
+    padding: 28px 16px 64px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  header {
+    max-width: 1100px;
+    margin: 0 auto 20px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+  h1 { font-weight: 300; font-size: 26px; letter-spacing: 0.02em; }
+  #count { font-size: 15px; opacity: 0.7; }
+
+  /* the viewer: the black disc with the turning object and its haiku */
+  #viewer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 36px;
+  }
+  #disc {
+    position: relative;
+    width: var(--disc);
+    height: var(--disc);
+    border-radius: 50%;
+    background: #000;
+    box-shadow: 0 0 0 6px var(--blue);
+    overflow: hidden;
+  }
+  #gl { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #haiku {
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    bottom: 13%;
+    color: #fff;
+    text-align: center;
+    font-style: italic;
+    font-weight: 300;
+    font-size: calc(var(--disc) * 0.042);
+    line-height: 1.45;
+    transition: opacity 0.4s;
+  }
+  #nav { display: flex; align-items: center; gap: 18px; }
+  #nav button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  #nav button:hover { background: rgba(0, 0, 0, 0.08); }
+  #title { min-width: 200px; text-align: center; }
+  #title b { display: block; font-weight: 600; font-size: 18px; }
+  #title span { font-size: 14px; opacity: 0.7; }
+
+  /* the list */
+  #list {
+    max-width: 1100px;
+    margin: 0 auto;
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+  }
+  #list button {
+    width: 100%;
+    height: 100%;
+    text-align: left;
+    padding: 16px 18px;
+    border: 2px solid transparent;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.22);
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  #list button:hover { background: rgba(255, 255, 255, 0.34); }
+  #list button[aria-current='true'] { border-color: var(--blue); background: rgba(255, 255, 255, 0.4); }
+  #list b { display: block; font-weight: 600; font-size: 17px; margin-bottom: 8px; }
+  #list i { display: block; font-weight: 300; font-size: 15px; line-height: 1.45; }
+  #list small { display: block; margin-top: 10px; font-size: 13px; opacity: 0.65; }
+
+  #empty { text-align: center; font-size: 18px; margin-top: 40px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Tales Through Things · Collection</h1>
+    <span id="count"></span>
+  </header>
+
+  <section id="viewer" hidden>
+    <div id="disc">
+      <canvas id="gl"></canvas>
+      <div id="haiku"></div>
+    </div>
+    <div id="nav">
+      <button id="prev" aria-label="Previous memory">←</button>
+      <div id="title"></div>
+      <button id="next" aria-label="Next memory">→</button>
+    </div>
+  </section>
+
+  <ul id="list"></ul>
+  <p id="empty" hidden></p>
+
+<script type="module">
+import { createPointCloud } from './pointcloud.js';
+
+const $ = (id) => document.getElementById(id);
+const canvas = $('gl');
+const objects = createPointCloud(canvas);
+let memories = [];
+let index = -1;
+
+function fit() {
+  objects.resize(1, canvas.clientWidth);
+}
+
+function when(created) {
+  if (!created || created < 1e9) return '';
+  return new Date(created * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function haikuLines(m) {
+  return (Array.isArray(m.haiku) ? m.haiku : [m.haiku || '']).map((l) => l.replace(/[&<>]/g, (c) => `&#${c.charCodeAt(0)};`));
+}
+
+function select(i, scroll = false) {
+  if (!memories.length) return;
+  index = (i + memories.length) % memories.length;
+  const m = memories[index];
+  objects.show(m.points, m.tilt);
+  $('haiku').innerHTML = haikuLines(m).join('<br>');
+  $('title').innerHTML = '';
+  const b = document.createElement('b');
+  b.textContent = m.object || m.id;
+  const span = document.createElement('span');
+  span.textContent = `${index + 1} / ${memories.length}${m.theme ? ` · ${m.theme}` : ''}`;
+  $('title').append(b, span);
+  history.replaceState(null, '', `#${m.id}`);
+  document.querySelectorAll('#list button').forEach((el, k) => el.setAttribute('aria-current', String(k === index)));
+  if (scroll) $('viewer').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // the next one is likely to be asked for: load it ahead
+  objects.preload(memories[(index + 1) % memories.length].points);
+}
+
+function render() {
+  $('count').textContent = `${memories.length} ${memories.length === 1 ? 'memory' : 'memories'}`;
+  if (!memories.length) {
+    $('empty').hidden = false;
+    $('empty').textContent = 'The collection is empty.';
+    return;
+  }
+  $('viewer').hidden = false;
+  fit();
+  const list = $('list');
+  memories.forEach((m, i) => {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.innerHTML = `<b></b><i>${haikuLines(m).join('<br>')}</i><small></small>`;
+    btn.querySelector('b').textContent = m.object || m.id;
+    btn.querySelector('small').textContent = [m.theme, when(m.created)].filter(Boolean).join(' · ');
+    btn.addEventListener('click', () => select(i, true));
+    li.append(btn);
+    list.append(li);
+  });
+  const fromHash = memories.findIndex((m) => m.id === location.hash.slice(1));
+  select(fromHash >= 0 ? fromHash : 0);
+}
+
+$('prev').addEventListener('click', () => select(index - 1));
+$('next').addEventListener('click', () => select(index + 1));
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft') select(index - 1);
+  if (e.key === 'ArrowRight') select(index + 1);
+});
+addEventListener('resize', fit);
+
+function frame(now) {
+  objects.update(now);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+fetch('/api/collection', { cache: 'no-store' })
+  .then((res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  })
+  .then((list) => { memories = list; render(); })
+  .catch((err) => {
+    console.error(err);
+    $('empty').hidden = false;
+    $('empty').textContent = 'Could not load the collection. Reload the page to try again.';
+  });
+</script>
+</body>
+</html>

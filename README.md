@@ -36,6 +36,7 @@ Same certificate as the demo, so no extra iPad setup.
 
 Keys: `Space` = the button · `R`/`Esc` reset · `H` status overlay · `F` fullscreen.
 `?memory=<id>` shows one archived memory (review).
+`/collection.html` lists every archived memory (click one, or ← →, to see it turn; `#<id>` links to one).
 
 ## AI
 
